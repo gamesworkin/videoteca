@@ -1,7 +1,7 @@
 // CONFIGURAÇÕES DO BANCO DE DADOS (JSONBIN.IO) E YOUTUBE API
 const BIN_ID = "6a0f32256877513b27ad9e6e"; 
 const MASTER_KEY = "$2a$10$SpMCqRLrFJc5TefzAacUB.5.zFYLg7WAOcHxZt83XiWW5OoTm/wey"; 
-const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE";
+const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; 
 
 const CONFIG = {
     BIN_URL: `https://api.jsonbin.io/v3/b/${BIN_ID}`,
@@ -72,7 +72,7 @@ async function initApp() {
         buildSidebar(allVideos);
         renderGrid(allVideos, 'Início');
         setupModal();
-        buildAdminManagementLists(); // Alimenta as listas administrativas de controle
+        buildAdminManagementLists();
     } catch (e) { 
         console.error("Erro ao ler banco remoto:", e); 
         alert("Erro de conexão. Verifique o BIN_ID e MASTER_KEY.");
@@ -81,29 +81,39 @@ async function initApp() {
 
 async function saveDatabaseRemotely(updatedArray) {
     const log = document.getElementById("admin-status");
+    log.style.color = "#00ffcc";
     log.innerText = "Sincronizando com o banco remoto...";
+    
     try {
         const res = await fetch(CONFIG.BIN_URL, {
             method: "PUT",
             headers: CONFIG.HEADERS,
             body: JSON.stringify(updatedArray)
         });
+        
         if(res.ok) {
             allVideos = updatedArray;
             log.innerText = "Banco de dados atualizado com sucesso!";
             buildSidebar(allVideos);
             renderGrid(allVideos, 'Início');
-            buildAdminManagementLists(); // Atualiza painel interno
-            setTimeout(() => { log.innerText = ""; }, 3000);
+            buildAdminManagementLists(); 
+            setTimeout(() => { log.innerText = ""; }, 4000);
         } else {
-            log.innerText = "Erro ao gravar dados no servidor.";
+            // DETECTA SE O ERRO É DE TAMANHO EXCEDIDO DO SEVIDOR
+            if(res.status === 413 || res.status === 400) {
+                log.style.color = "#ff3333";
+                log.innerText = "Erro: Tamanho limite do arquivo JSON excedido no plano gratuito do JSONBin!";
+            } else {
+                log.style.color = "#ff3333";
+                log.innerText = `Erro no servidor: Status ${res.status}.`;
+            }
         }
     } catch(e) {
-        log.innerText = "Falha de rede ao sincronizar.";
+        log.style.color = "#ff3333";
+        log.innerText = "Falha de rede ao sincronizar. O arquivo pode estar pesado demais.";
     }
 }
 
-// SETUP DOS EVENTOS DO ADMIN (FORMS)
 function setupAdminEvents() {
     const modal = document.getElementById("admin-modal");
     document.getElementById("btn-admin").onclick = () => modal.classList.remove("hidden");
@@ -113,11 +123,11 @@ function setupAdminEvents() {
     document.getElementById("manual-upload-form").onsubmit = async (e) => {
         e.preventDefault();
         const newVid = {
-            "título": document.getElementById("m-title").value,
-            "link": document.getElementById("m-link").value,
-            "capa": document.getElementById("m-capa").value,
-            "categoria": document.getElementById("m-cat").value,
-            "subcategoria": document.getElementById("m-sub").value
+            "título": document.getElementById("m-title").value.trim(),
+            "link": document.getElementById("m-link").value.trim(),
+            "capa": document.getElementById("m-capa").value.trim(),
+            "categoria": document.getElementById("m-cat").value.trim(),
+            "subcategoria": document.getElementById("m-sub").value.trim()
         };
         await saveDatabaseRemotely([...allVideos, newVid]);
         document.getElementById("manual-upload-form").reset();
@@ -126,9 +136,10 @@ function setupAdminEvents() {
     document.getElementById("yt-import-form").onsubmit = async (e) => {
         e.preventDefault();
         const log = document.getElementById("admin-status");
+        log.style.color = "#00ffcc";
         let playlistId = document.getElementById("yt-playlist-id").value.trim();
-        const cat = document.getElementById("yt-cat").value;
-        const sub = document.getElementById("yt-sub").value;
+        const cat = document.getElementById("yt-cat").value.trim();
+        const sub = document.getElementById("yt-sub").value.trim();
 
         if(playlistId.includes("list=")) {
             playlistId = playlistId.split("list=")[1].split("&")[0];
@@ -138,35 +149,45 @@ function setupAdminEvents() {
         try {
             const ytUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}`;
             const response = await fetch(ytUrl);
-            const ytData = await response.json();
-
-            if(!ytData.items || ytData.items.length === 0) {
-                log.innerText = "Erro ao importar dados. Verifique o ID da playlist.";
+            
+            if (!response.ok) {
+                log.style.color = "#ff3333";
+                log.innerText = "Erro: Chave de API do YouTube inválida ou estourou a cota do Google Cloud hoje.";
                 return;
             }
 
+            const ytData = await response.json();
+
+            if(!ytData.items || ytData.items.length === 0) {
+                log.style.color = "#ff3333";
+                log.innerText = "A playlist está vazia ou é privada.";
+                return;
+            }
+
+            // COMPACTAÇÃO: Mapeia apenas as strings limpas para poupar espaço no JSONBin
             const importedVideos = ytData.items.map(item => {
-                const vId = item.snippet.resourceId.videoId;
-                const thumbnails = item.snippet.thumbnails;
+                const vId = item.snippet.resourceId ? item.snippet.resourceId.videoId : "";
+                const thumbnails = item.snippet.thumbnails || {};
                 const bestThumb = thumbnails.high ? thumbnails.high.url : (thumbnails.default ? thumbnails.default.url : "");
+                
                 return {
-                    "título": item.snippet.title,
-                    "capa": bestThumb,
+                    "título": (item.snippet.title || "").trim(),
+                    "capa": (bestThumb || "").trim(),
                     "link": `https://www.youtube.com/embed/${vId}`,
                     "categoria": cat,
                     "subcategoria": sub
                 };
-            });
+            }).filter(v => v.título && v.link); // Filtra itens fantasmas/deletados da playlist
 
             await saveDatabaseRemotely([...allVideos, ...importedVideos]);
             document.getElementById("yt-import-form").reset();
         } catch(err) {
-            log.innerText = "Erro ao ler dados da API do Google.";
+            log.style.color = "#ff3333";
+            log.innerText = "Erro crítico ao ler dados da API do Google.";
         }
     };
 }
 
-// NOVA FUNÇÃO MASTER: Desenha as listas de edição/exclusão estrutural e de vídeos
 function buildAdminManagementLists() {
     const structBody = document.getElementById("admin-structure-list");
     const videoBody = document.getElementById("admin-delete-list");
@@ -174,9 +195,8 @@ function buildAdminManagementLists() {
     structBody.innerHTML = "";
     videoBody.innerHTML = "";
 
-    // 1. MAPEIA CATEGORIAS E SUBCATEGORIAS EXISTENTES UNICAS
     const categoriesSet = [...new Set(allVideos.map(v => v.categoria).filter(Boolean))];
-    const subCategoriesMap = []; // Guarda objetos {cat: 'X', sub: 'Y'}
+    const subCategoriesMap = []; 
     
     allVideos.forEach(v => {
         if(v.categoria && v.subcategoria) {
@@ -185,7 +205,6 @@ function buildAdminManagementLists() {
         }
     });
 
-    // 2. INJETA CATEGORIAS NA TABELA DE ESTRUTURAS
     categoriesSet.forEach(catName => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -193,11 +212,10 @@ function buildAdminManagementLists() {
             <td style="font-weight:bold; color:#fff;">${catName}</td>
             <td>—</td>
             <td>
-                <button class="btn-edit-item" title="Editar nome da Categoria"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn-delete-item" title="Excluir Categoria inteira"><i class="fa-solid fa-trash"></i></button>
+                <button class="btn-edit-item"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-delete-item"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
-        // Evento Editar Categoria
         tr.querySelector(".btn-edit-item").onclick = () => {
             const newName = prompt(`Digite o novo nome para a categoria "${catName}":`, catName);
             if(newName && newName.trim() !== catName) {
@@ -205,17 +223,14 @@ function buildAdminManagementLists() {
                 saveDatabaseRemotely(updated);
             }
         };
-        // Evento Excluir Categoria
         tr.querySelector(".btn-delete-item").onclick = () => {
-            if(confirm(`ATENÇÃO! Excluir a categoria "${catName}" apagará TODOS os vídeos atrelados a ela. Confirmar?`)) {
-                const updated = allVideos.filter(v => v.categoria !== catName);
-                saveDatabaseRemotely(updated);
+            if(confirm(`Excluir a categoria "${catName}" apagará TODOS os vídeos dela. Confirmar?`)) {
+                saveDatabaseRemotely(allVideos.filter(v => v.categoria !== catName));
             }
         };
         structBody.appendChild(tr);
     });
 
-    // 3. INJETA SUBCATEGORIAS NA TABELA DE ESTRUTURAS
     subCategoriesMap.forEach(item => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -223,29 +238,25 @@ function buildAdminManagementLists() {
             <td style="color:#eee;">${item.sub}</td>
             <td style="color:#777;">${item.cat}</td>
             <td>
-                <button class="btn-edit-item" title="Editar nome da Subcategoria"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn-delete-item" title="Excluir Subcategoria inteira"><i class="fa-solid fa-trash"></i></button>
+                <button class="btn-edit-item"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-delete-item"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
-        // Evento Editar Subcategoria
         tr.querySelector(".btn-edit-item").onclick = () => {
-            const newName = prompt(`Digite o novo nome para a subcategoria "${item.sub}" (da categoria ${item.cat}):`, item.sub);
+            const newName = prompt(`Digite o novo nome para a subcategoria "${item.sub}":`, item.sub);
             if(newName && newName.trim() !== item.sub) {
                 const updated = allVideos.map(v => (v.categoria === item.cat && v.subcategoria === item.sub) ? { ...v, subcategoria: newName.trim() } : v);
                 saveDatabaseRemotely(updated);
             }
         };
-        // Evento Excluir Subcategoria
         tr.querySelector(".btn-delete-item").onclick = () => {
-            if(confirm(`Deseja apagar a subcategoria "${item.sub}" e todos os seus vídeos contidos em "${item.cat}"?`)) {
-                const updated = allVideos.filter(v => !(v.categoria === item.cat && v.subcategoria === item.sub));
-                saveDatabaseRemotely(updated);
+            if(confirm(`Deseja apagar a subcategoria "${item.sub}" e seus vídeos de "${item.cat}"?`)) {
+                saveDatabaseRemotely(allVideos.filter(v => !(v.categoria === item.cat && v.subcategoria === item.sub)));
             }
         };
         structBody.appendChild(tr);
     });
 
-    // 4. INJETA LISTA DE VÍDEOS INDIVIDUAIS (PRESERVADO)
     if (allVideos.length === 0) {
         videoBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#555;">Nenhum vídeo na biblioteca.</td></tr>`;
         return;
@@ -257,13 +268,12 @@ function buildAdminManagementLists() {
             <td>${video.categoria || "Geral"}</td>
             <td>${video.subcategoria || "—"}</td>
             <td>
-                <button class="btn-delete-item" title="Excluir este vídeo apenas"><i class="fa-solid fa-trash"></i></button>
+                <button class="btn-delete-item"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
         tr.querySelector(".btn-delete-item").onclick = async () => {
             if (confirm(`Excluir apenas o vídeo "${getSafeTitle(video)}"?`)) {
-                const updatedList = allVideos.filter((_, idx) => idx !== index);
-                await saveDatabaseRemotely(updatedList);
+                saveDatabaseRemotely(allVideos.filter((_, idx) => idx !== index));
             }
         };
         videoBody.appendChild(tr);
@@ -277,7 +287,6 @@ function switchAdminTab(tabId) {
     event.currentTarget.classList.add("active");
 }
 
-// RENDERERS DE GRID EM MOSAICO E SIDEBAR (PRESERVADOS INTEGRALMENTE)
 function buildSidebar(videos) {
     const menu = document.getElementById("sidebar-menu");
     const cats = [...new Set(videos.map(v => v.categoria).filter(Boolean))];
@@ -422,7 +431,6 @@ function renderVideosInBody(videos, container) {
 function filterCat(c) { renderGrid(allVideos.filter(v => v.categoria === c), c); }
 function filterSub(c, s) { renderGrid(allVideos.filter(v => v.categoria === c && v.subcategoria === s), s); }
 
-// PLAYER
 function openPlayer(video, playlist) {
     currentPlaylist = playlist;
     currentIndex = playlist.findIndex(v => v.link === video.link);
@@ -448,7 +456,6 @@ function changeVideo(s) {
     else closeModal();
 }
 
-// TIMEOUTS
 function closeModal() {
     document.getElementById("video-modal").classList.add("hidden");
     document.getElementById("player-wrapper").innerHTML = "";
