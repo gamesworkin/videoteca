@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CinePrivate V13 - Banco em Tempo Real</title>
+    <title>CinePrivate V14 - Painel de Controle Completo</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -67,6 +67,7 @@
             <div class="admin-tabs">
                 <button class="tab-btn active" onclick="switchAdminTab('yt-tab')"><i class="fa-brands fa-youtube"></i> Importar Playlist</button>
                 <button class="tab-btn" onclick="switchAdminTab('manual-tab')"><i class="fa-solid fa-pen-to-square"></i> Cadastro Manual</button>
+                <button class="tab-btn" onclick="switchAdminTab('delete-tab')"><i class="fa-solid fa-trash-can"></i> Gerenciar / Excluir</button>
             </div>
 
             <div id="yt-tab" class="admin-tab-content">
@@ -116,6 +117,24 @@
                     <button type="submit" class="btn-login"><i class="fa-solid fa-plus"></i> Salvar Vídeo</button>
                 </form>
             </div>
+
+            <div id="delete-tab" class="admin-tab-content hidden">
+                <div class="delete-list-container">
+                    <table class="delete-table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Categoria</th>
+                                <th>Subcategoria</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-delete-list">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div id="admin-status" class="admin-status-log"></div>
         </div>
     </div>
