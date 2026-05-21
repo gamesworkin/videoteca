@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CinePrivate V16 - Firebase Edition</title>
+    <title>CinePrivate V17 - Painel Administrativo Master</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -65,9 +65,10 @@
             <h2>Painel do Administrador</h2>
             
             <div class="admin-tabs">
-                <button class="tab-btn active" onclick="switchAdminTab('yt-tab')"><i class="fa-brands fa-youtube"></i> Importar Playlist</button>
-                <button class="tab-btn" onclick="switchAdminTab('manual-tab')"><i class="fa-solid fa-pen-to-square"></i> Cadastro Manual</button>
-                <button class="tab-btn" onclick="switchAdminTab('delete-tab')"><i class="fa-solid fa-folder-tree"></i> Gerenciar Listas e Vídeos</button>
+                <button class="tab-btn active" id="tab-link-yt" onclick="switchAdminTab('yt-tab')"><i class="fa-brands fa-youtube"></i> Importar Playlist</button>
+                <button class="tab-btn" id="tab-link-manual" onclick="switchAdminTab('manual-tab')"><i class="fa-solid fa-pen-to-square"></i> Cadastro Manual</button>
+                <button class="tab-btn" id="tab-link-delete" onclick="switchAdminTab('delete-tab')"><i class="fa-solid fa-folder-tree"></i> Gerenciar Listas e Vídeos</button>
+                <button class="tab-btn hidden" id="tab-link-edit" onclick="switchAdminTab('edit-video-tab')"><i class="fa-solid fa-user-gear"></i> Editando Vídeo</button>
             </div>
 
             <div id="yt-tab" class="admin-tab-content">
@@ -118,6 +119,38 @@
                 </form>
             </div>
 
+            <div id="edit-video-tab" class="admin-tab-content hidden">
+                <form id="edit-video-form">
+                    <input type="hidden" id="edit-video-index">
+                    <div class="input-group">
+                        <label>Editar Título do Vídeo</label>
+                        <input type="text" id="edit-m-title" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Editar URL / Link Embed</label>
+                        <input type="text" id="edit-m-link" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Editar URL da Thumbnail</label>
+                        <input type="text" id="edit-m-capa" required>
+                    </div>
+                    <div class="input-row-flex">
+                        <div class="input-group">
+                            <label>Mudar Categoria</label>
+                            <input type="text" id="edit-m-cat" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Mudar Subcategoria</label>
+                            <input type="text" id="edit-m-sub" required>
+                        </div>
+                    </div>
+                    <div class="input-row-flex">
+                        <button type="submit" class="btn-login" style="background:#00ffcc; color:#000;"><i class="fa-solid fa-floppy-disk"></i> Confirmar Alterações</button>
+                        <button type="button" class="btn-login" style="background:#333;" onclick="cancelVideoEdit()"><i class="fa-solid fa-ban"></i> Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
             <div id="delete-tab" class="admin-tab-content hidden">
                 <h3 class="section-admin-title"><i class="fa-solid fa-folder-open"></i> Editar / Excluir Estruturas</h3>
                 <div class="delete-list-container" style="margin-bottom: 25px;">
@@ -142,7 +175,7 @@
                                 <th>Título</th>
                                 <th>Categoria</th>
                                 <th>Subcategoria</th>
-                                <th>Ação</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody id="admin-delete-list"></tbody>
