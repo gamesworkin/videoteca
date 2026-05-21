@@ -1,7 +1,7 @@
 // CONFIGURAÇÕES DO BANCO DE DADOS (JSONBIN.IO) E YOUTUBE API
 const BIN_ID = "6a0f32256877513b27ad9e6e"; 
 const MASTER_KEY = "$2a$10$SpMCqRLrFJc5TefzAacUB.5.zFYLg7WAOcHxZt83XiWW5OoTm/wey"; 
-const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; 
+const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE";
 
 const CONFIG = {
     BIN_URL: `https://api.jsonbin.io/v3/b/${BIN_ID}`,
@@ -79,6 +79,7 @@ async function initApp() {
     }
 }
 
+// FUNÇÃO PADRÃO PARA SALVAR PEQUENAS ALTERAÇÕES (VÍDEO ÚNICO OU EDIÇÃO)
 async function saveDatabaseRemotely(updatedArray) {
     const log = document.getElementById("admin-status");
     log.style.color = "#00ffcc";
@@ -99,10 +100,12 @@ async function saveDatabaseRemotely(updatedArray) {
             buildAdminManagementLists(); 
             setTimeout(() => { log.innerText = ""; }, 4000);
         } else {
-            // DETECTA SE O ERRO É DE TAMANHO EXCEDIDO DO SEVIDOR
             if(res.status === 413 || res.status === 400) {
                 log.style.color = "#ff3333";
-                log.innerText = "Erro: Tamanho limite do arquivo JSON excedido no plano gratuito do JSONBin!";
+                log.innerText = "Erro: Tamanho limite do arquivo JSON excedido no JSONBin!";
+            } else if(res.status === 403) {
+                log.style.color = "#ff3333";
+                log.innerText = "Erro 403: Servidor bloqueou o envio em lote. Tente novamente em instantes.";
             } else {
                 log.style.color = "#ff3333";
                 log.innerText = `Erro no servidor: Status ${res.status}.`;
@@ -110,8 +113,69 @@ async function saveDatabaseRemotely(updatedArray) {
         }
     } catch(e) {
         log.style.color = "#ff3333";
-        log.innerText = "Falha de rede ao sincronizar. O arquivo pode estar pesado demais.";
+        log.innerText = "Falha de rede ao sincronizar.";
     }
+}
+
+// NOVA FUNÇÃO: Envia listas gigantes em "pedaços" com pausas para evitar o Erro 403
+async function saveLargePlaylistInChunks(newVideosArray) {
+    const log = document.getElementById("admin-status");
+    log.style.color = "#00ffcc";
+    
+    // Tamanho de cada pedaço (Fatias de 5 em 5 vídeos é o ideal para segurança)
+    const chunkSize = 5; 
+    let currentDatabase = [...allVideos];
+    
+    log.innerText = `Preparando importação de ${newVideosArray.length} vídeos fatiados...`;
+
+    for (let i = 0; i < newVideosArray.length; i += chunkSize) {
+        const chunk = newVideosArray.slice(i, i + chunkSize);
+        currentDatabase = [...currentDatabase, ...chunk];
+        
+        const currentPart = Math.floor(i / chunkSize) + 1;
+        const totalParts = Math.ceil(newVideosArray.length / chunkSize);
+        log.innerText = `Enviando bloco ${currentPart} de ${totalParts} para o servidor...`;
+
+        try {
+            const res = await fetch(CONFIG.BIN_URL, {
+                method: "PUT",
+                headers: CONFIG.HEADERS,
+                body: JSON.stringify(currentDatabase)
+            });
+
+            if (!res.ok) {
+                if (res.status === 403) {
+                    log.style.color = "#ff3333";
+                    log.innerText = "O servidor barrou o envio por excesso de velocidade. Aguardando 5 segundos para tentar novamente...";
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    i -= chunkSize; // Desfaz o passo para retransmitir a mesma fatia
+                    currentDatabase = currentDatabase.slice(0, currentDatabase.length - chunk.length); // Remove duplicados da memória
+                    continue;
+                } else {
+                    log.style.color = "#ff3333";
+                    log.innerText = `Erro durante o upload parcelado: Status ${res.status}`;
+                    return;
+                }
+            }
+
+            // Atualiza a memória local a cada bloco com sucesso
+            allVideos = currentDatabase;
+
+            // Pequena pausa de 1.5 segundos entre os envios para enganar o sistema anti-spam do JSONBin
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+        } catch (e) {
+            log.style.color = "#ff3333";
+            log.innerText = "Erro de conexão no envio parcelado.";
+            return;
+        }
+    }
+
+    log.innerText = "Sincronização completa de toda a playlist realizada!";
+    buildSidebar(allVideos);
+    renderGrid(allVideos, 'Início');
+    buildAdminManagementLists();
+    setTimeout(() => { log.innerText = ""; }, 4000);
 }
 
 function setupAdminEvents() {
@@ -145,27 +209,38 @@ function setupAdminEvents() {
             playlistId = playlistId.split("list=")[1].split("&")[0];
         }
 
-        log.innerText = "Chamando API do YouTube...";
+        log.innerText = "Buscando dados da lista no Google...";
+        
+        let allItems = [];
+        let nextPageToken = "";
+        
         try {
-            const ytUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}`;
-            const response = await fetch(ytUrl);
-            
-            if (!response.ok) {
+            // LOOP DE PAGINAÇÃO: Suporta listas com mais de 50 vídeos (o YouTube limita em 50 por página)
+            do {
+                const tokenParam = nextPageToken ? `&pageToken=${nextPageToken}` : "";
+                const ytUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}${tokenParam}&key=${YT_API_KEY}`;
+                
+                const response = await fetch(ytUrl);
+                if (!response.ok) {
+                    log.style.color = "#ff3333";
+                    log.innerText = "Erro: Cota diária do YouTube esgotada ou ID de playlist incorreto.";
+                    return;
+                }
+
+                const ytData = await response.json();
+                if(ytData.items) {
+                    allItems = [...allItems, ...ytData.items];
+                }
+                nextPageToken = ytData.nextPageToken || "";
+            } while (nextPageToken);
+
+            if(allItems.length === 0) {
                 log.style.color = "#ff3333";
-                log.innerText = "Erro: Chave de API do YouTube inválida ou estourou a cota do Google Cloud hoje.";
+                log.innerText = "A playlist informada está vazia.";
                 return;
             }
 
-            const ytData = await response.json();
-
-            if(!ytData.items || ytData.items.length === 0) {
-                log.style.color = "#ff3333";
-                log.innerText = "A playlist está vazia ou é privada.";
-                return;
-            }
-
-            // COMPACTAÇÃO: Mapeia apenas as strings limpas para poupar espaço no JSONBin
-            const importedVideos = ytData.items.map(item => {
+            const importedVideos = allItems.map(item => {
                 const vId = item.snippet.resourceId ? item.snippet.resourceId.videoId : "";
                 const thumbnails = item.snippet.thumbnails || {};
                 const bestThumb = thumbnails.high ? thumbnails.high.url : (thumbnails.default ? thumbnails.default.url : "");
@@ -177,13 +252,15 @@ function setupAdminEvents() {
                     "categoria": cat,
                     "subcategoria": sub
                 };
-            }).filter(v => v.título && v.link); // Filtra itens fantasmas/deletados da playlist
+            }).filter(v => v.título && v.link && !v.título.includes("Private video") && !v.título.includes("Deleted video"));
 
-            await saveDatabaseRemotely([...allVideos, ...importedVideos]);
+            // Executa a nova função de envio seguro fatiado
+            await saveLargePlaylistInChunks(importedVideos);
             document.getElementById("yt-import-form").reset();
+
         } catch(err) {
             log.style.color = "#ff3333";
-            log.innerText = "Erro crítico ao ler dados da API do Google.";
+            log.innerText = "Erro no processamento interno da playlist.";
         }
     };
 }
@@ -396,7 +473,7 @@ function renderSubcategoriesInBody(videos, container) {
         sCard.onclick = (e) => {
             e.stopPropagation();
             const isHidden = videoContainer.classList.contains("hidden");
-            container.querySelectorAll(".expanded-container").forEach(el => el.classList.add("hidden"));
+            document.querySelectorAll(".expanded-container").forEach(el => el.classList.add("hidden"));
             if(isHidden) {
                 renderVideosInBody(sVids, videoContainer);
                 videoContainer.classList.remove("hidden");
