@@ -1,6 +1,6 @@
-// URL DO SEU FIREBASE (Lembre-se de colocar o /.json no final)
+// URL DO SEU FIREBASE BASEADO NA SUA FOTO
 const FIREBASE_URL = "https://videoteca-19bac-default-rtdb.firebaseio.com/.json"; 
-const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; 
+const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; // Cole aqui a sua chave da API do YouTube v3
 
 const CREDENTIALS = { user: "admin", pass: "admin123" };
 const SESSION_TIMEOUT = 30 * 60 * 1000; 
@@ -51,7 +51,7 @@ function checkSession() {
 function logout() { localStorage.clear(); location.reload(); }
 document.getElementById("btn-logout").addEventListener("click", logout);
 
-// BUSCA OS DADOS DIRETAMENTE DO FIREBASE
+// BUSCA OS DADOS DIRETAMENTE DO FIREBASE COM CORREÇÃO DE OBJETO PARA ARRAY
 async function initApp() {
     document.getElementById("login-screen").classList.add("hidden");
     document.getElementById("main-content").classList.remove("hidden");
@@ -59,8 +59,16 @@ async function initApp() {
     try {
         const res = await fetch(FIREBASE_URL);
         const data = await res.json();
-        // O Firebase retorna null se o banco estiver vazio
-        allVideos = data || [];
+        
+        // CORREÇÃO: Converte o formato do Firebase em Array pura se ele retornar como Objeto
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+            allVideos = Object.values(data);
+        } else {
+            allVideos = data || [];
+        }
+        
+        // Remove possíveis itens nulos que o Firebase gera ao excluir índices intermediários
+        allVideos = allVideos.filter(Boolean);
         
         buildSidebar(allVideos);
         renderGrid(allVideos, 'Início');
@@ -68,7 +76,7 @@ async function initApp() {
         buildAdminManagementLists();
     } catch (e) { 
         console.error("Erro ao ler banco Firebase:", e); 
-        alert("Erro de conexão. Verifique se a URL do Firebase possui o /.json no final.");
+        alert("Erro de conexão com o banco de dados.");
     }
 }
 
@@ -86,7 +94,7 @@ async function saveDatabaseRemotely(updatedArray) {
         });
         
         if(res.ok) {
-            allVideos = updatedArray;
+            allVideos = updatedArray.filter(Boolean);
             log.innerText = "Biblioteca Firebase sincronizada!";
             buildSidebar(allVideos);
             renderGrid(allVideos, 'Início');
@@ -177,7 +185,6 @@ function setupAdminEvents() {
                 };
             }).filter(v => v.título && v.link && !v.título.includes("Private video") && !v.título.includes("Deleted video"));
 
-            // Gravação instantânea no Firebase, sem precisar fatiar de 5 em 5!
             await saveDatabaseRemotely([...allVideos, ...importedVideos]);
             document.getElementById("yt-import-form").reset();
 
@@ -273,7 +280,9 @@ function buildAdminManagementLists() {
         `;
         tr.querySelector(".btn-delete-item").onclick = async () => {
             if (confirm(`Excluir apenas o vídeo "${getSafeTitle(video)}"?`)) {
-                saveDatabaseRemotely(allVideos.filter((_, idx) => idx !== index));
+                const clone = [...allVideos];
+                clone.splice(index, 1);
+                saveDatabaseRemotely(clone);
             }
         };
         videoBody.appendChild(tr);
@@ -396,7 +405,7 @@ function renderSubcategoriesInBody(videos, container) {
         sCard.onclick = (e) => {
             e.stopPropagation();
             const isHidden = videoContainer.classList.contains("hidden");
-            document.querySelectorAll(".expanded-container").forEach(el => el.classList.add("hidden"));
+            container.querySelectorAll(".expanded-container").forEach(el => el.classList.add("hidden"));
             if(isHidden) {
                 renderVideosInBody(sVids, videoContainer);
                 videoContainer.classList.remove("hidden");
