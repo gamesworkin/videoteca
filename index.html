@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CinePrivate V13 - Banco em Tempo Real</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div id="login-screen" class="login-container">
+        <div class="login-box">
+            <h2><i class="fa-solid fa-bolt"></i> CinePrivate</h2>
+            <form id="login-form">
+                <div class="input-group">
+                    <label>Usuário</label>
+                    <input type="text" id="username" required autocomplete="username">
+                </div>
+                <div class="input-group">
+                    <label>Senha</label>
+                    <input type="password" id="password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-login">Entrar</button>
+                <div id="login-error" class="error-message">Acesso negado.</div>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-content" class="main-wrapper hidden">
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-toggle" id="toggle-menu">
+                <i class="fa-solid fa-bars"></i>
+            </div>
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h3>Navegação</h3>
+                </div>
+                <nav id="sidebar-menu" class="menu-channels"></nav>
+                <button id="btn-logout" class="btn-logout"><i class="fa-solid fa-power-off"></i> <span>Sair</span></button>
+            </div>
+        </aside>
+
+        <main class="content-area">
+            <div class="top-search-bar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="search-input" placeholder="Pesquisar vídeos...">
+                </div>
+                <button id="btn-admin" class="btn-admin-gear" title="Painel de Controle"><i class="fa-solid fa-gear"></i></button>
+            </div>
+
+            <header class="main-header">
+                <h1 id="current-view-title">Início</h1>
+            </header>
+            
+            <section id="categories-grid" class="main-mosaic-grid"></section>
+        </main>
+    </div>
+
+    <div id="admin-modal" class="video-modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content admin-modal-box">
+            <button id="close-admin" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            <h2>Painel do Administrador</h2>
+            
+            <div class="admin-tabs">
+                <button class="tab-btn active" onclick="switchAdminTab('yt-tab')"><i class="fa-brands fa-youtube"></i> Importar Playlist</button>
+                <button class="tab-btn" onclick="switchAdminTab('manual-tab')"><i class="fa-solid fa-pen-to-square"></i> Cadastro Manual</button>
+            </div>
+
+            <div id="yt-tab" class="admin-tab-content">
+                <form id="yt-import-form">
+                    <div class="input-group">
+                        <label>ID ou Link da Playlist do YouTube</label>
+                        <input type="text" id="yt-playlist-id" placeholder="Ex: PLt......" required>
+                    </div>
+                    <div class="input-row-flex">
+                        <div class="input-group">
+                            <label>Categoria</label>
+                            <input type="text" id="yt-cat" placeholder="Ex: Filmes" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Subcategoria</label>
+                            <input type="text" id="yt-sub" placeholder="Ex: Terror" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-login"><i class="fa-solid fa-cloud-arrow-down"></i> Sincronizar Playlist</button>
+                </form>
+            </div>
+
+            <div id="manual-tab" class="admin-tab-content hidden">
+                <form id="manual-upload-form">
+                    <div class="input-group">
+                        <label>Título do Vídeo</label>
+                        <input type="text" id="m-title" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Link do Vídeo / Embed (YouTube, Archive.org, MP4)</label>
+                        <input type="text" id="m-link" placeholder="https://..." required>
+                    </div>
+                    <div class="input-group">
+                        <label>Link da Imagem de Capa (Thumbnail)</label>
+                        <input type="text" id="m-capa" placeholder="https://..." required>
+                    </div>
+                    <div class="input-row-flex">
+                        <div class="input-group">
+                            <label>Categoria</label>
+                            <input type="text" id="m-cat" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Subcategoria</label>
+                            <input type="text" id="m-sub" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-login"><i class="fa-solid fa-plus"></i> Salvar Vídeo</button>
+                </form>
+            </div>
+            <div id="admin-status" class="admin-status-log"></div>
+        </div>
+    </div>
+
+    <div id="video-modal" class="video-modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <button id="close-modal" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            <div id="player-wrapper" class="player-container"></div>
+            <div class="player-controls-bar">
+                <h3 id="modal-video-title">Título</h3>
+                <div class="controls-buttons">
+                    <button id="prev-video-btn" class="control-btn"><i class="fa-solid fa-backward"></i></button>
+                    <button id="next-video-btn" class="control-btn"><i class="fa-solid fa-forward"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
