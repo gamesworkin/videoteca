@@ -3,6 +3,7 @@ const BIN_ID = "6a0f32256877513b27ad9e6e";
 const MASTER_KEY = "$2a$10$SpMCqRLrFJc5TefzAacUB.5.zFYLg7WAOcHxZt83XiWW5OoTm/wey"; 
 const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; // Opcional, só se usar importador de playlist
 
+
 const CONFIG = {
     BIN_URL: `https://api.jsonbin.io/v3/b/${BIN_ID}`,
     HEADERS: {
@@ -60,7 +61,6 @@ function checkSession() {
 function logout() { localStorage.clear(); location.reload(); }
 document.getElementById("btn-logout").addEventListener("click", logout);
 
-// BUSCA OS DADOS REMOTAMENTE DA API DO JSONBIN
 async function initApp() {
     document.getElementById("login-screen").classList.add("hidden");
     document.getElementById("main-content").classList.remove("hidden");
@@ -73,16 +73,16 @@ async function initApp() {
         buildSidebar(allVideos);
         renderGrid(allVideos, 'Início');
         setupModal();
+        buildAdminDeleteList(); // Alimenta a lista de exclusão
     } catch (e) { 
         console.error("Erro ao ler banco remoto:", e); 
-        alert("Erro ao conectar com o banco de dados. Verifique o BIN_ID e MASTER_KEY.");
+        alert("Erro de conexão. Verifique o BIN_ID e MASTER_KEY.");
     }
 }
 
-// SALVA O ARQUIVO JSON ATUALIZADO NO BANCO DE DADOS REMOTO
 async function saveDatabaseRemotely(updatedArray) {
     const log = document.getElementById("admin-status");
-    log.innerText = "Salvando no banco de dados...";
+    log.innerText = "Sincronizando com o servidor...";
     try {
         const res = await fetch(CONFIG.BIN_URL, {
             method: "PUT",
@@ -91,26 +91,27 @@ async function saveDatabaseRemotely(updatedArray) {
         });
         if(res.ok) {
             allVideos = updatedArray;
-            log.innerText = "Biblioteca atualizada com sucesso!";
+            log.innerText = "Banco de dados atualizado remoto!";
             buildSidebar(allVideos);
             renderGrid(allVideos, 'Início');
+            buildAdminDeleteList(); // Atualiza a lista de exclusão imediatamente
             setTimeout(() => { log.innerText = ""; }, 3000);
         } else {
-            log.innerText = "Erro ao salvar dados no servidor.";
+            log.innerText = "Erro ao gravar dados no servidor.";
         }
     } catch(e) {
         log.innerText = "Falha de rede ao sincronizar.";
     }
 }
 
-// CADASTROS E IMPORTADOR DE PLAYLISTS
+// ADMINISTRAÇÃO: CADASTRO, IMPORTAÇÃO E EXCLUSÃO
 function setupAdminEvents() {
     const modal = document.getElementById("admin-modal");
     document.getElementById("btn-admin").onclick = () => modal.classList.remove("hidden");
     document.getElementById("close-admin").onclick = () => modal.classList.add("hidden");
     document.querySelector("#admin-modal .modal-backdrop").onclick = () => modal.classList.add("hidden");
 
-    // Form Manual
+    // Cadastro Manual
     document.getElementById("manual-upload-form").onsubmit = async (e) => {
         e.preventDefault();
         const newVid = {
@@ -120,12 +121,11 @@ function setupAdminEvents() {
             "categoria": document.getElementById("m-cat").value,
             "subcategoria": document.getElementById("m-sub").value
         };
-        const clone = [...allVideos, newVid];
-        await saveDatabaseRemotely(clone);
+        await saveDatabaseRemotely([...allVideos, newVid]);
         document.getElementById("manual-upload-form").reset();
     };
 
-    // Form YouTube API v3
+    // Importador do YouTube
     document.getElementById("yt-import-form").onsubmit = async (e) => {
         e.preventDefault();
         const log = document.getElementById("admin-status");
@@ -137,7 +137,7 @@ function setupAdminEvents() {
             playlistId = playlistId.split("list=")[1].split("&")[0];
         }
 
-        log.innerText = "Acessando API do YouTube...";
+        log.innerText = "Chamando API do YouTube...";
         
         try {
             const ytUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${YT_API_KEY}`;
@@ -145,7 +145,7 @@ function setupAdminEvents() {
             const ytData = await response.json();
 
             if(!ytData.items || ytData.items.length === 0) {
-                log.innerText = "Nenhum vídeo encontrado ou erro de API key.";
+                log.innerText = "Nenhum dado retornado. Chave inválida ou playlist privada.";
                 return;
             }
 
@@ -163,14 +163,46 @@ function setupAdminEvents() {
                 };
             });
 
-            const mergedList = [...allVideos, ...importedVideos];
-            await saveDatabaseRemotely(mergedList);
+            await saveDatabaseRemotely([...allVideos, ...importedVideos]);
             document.getElementById("yt-import-form").reset();
 
         } catch(err) {
-            log.innerText = "Erro ao processar requisição do YouTube.";
+            log.innerText = "Erro ao ler a Playlist do YouTube.";
         }
     };
+}
+
+// NOVA FUNÇÃO: Alimenta e desenha o gerenciador de exclusão de vídeos
+function buildAdminDeleteList() {
+    const listBody = document.getElementById("admin-delete-list");
+    listBody.innerHTML = "";
+
+    if (allVideos.length === 0) {
+        listBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#555;">Nenhum vídeo cadastrado.</td></tr>`;
+        return;
+    }
+
+    allVideos.forEach((video, index) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td style="font-weight:bold; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${getSafeTitle(video)}</td>
+            <td>${video.categoria || "Geral"}</td>
+            <td>${video.subcategoria || "—"}</td>
+            <td>
+                <button class="btn-delete-item" title="Excluir vídeo"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        `;
+
+        // Evento de gatilho para deletar o item selecionado
+        tr.querySelector(".btn-delete-item").onclick = async () => {
+            if (confirm(`Tem certeza que deseja excluir o vídeo "${getSafeTitle(video)}"?`)) {
+                const updatedList = allVideos.filter((_, idx) => idx !== index);
+                await saveDatabaseRemotely(updatedList);
+            }
+        };
+
+        listBody.appendChild(tr);
+    });
 }
 
 function switchAdminTab(tabId) {
@@ -180,7 +212,7 @@ function switchAdminTab(tabId) {
     event.currentTarget.classList.add("active");
 }
 
-// RENDERERS (PRESERVADOS EXATAMENTE COMO ANTES)
+// RENDERERS DE MOSAICO (PRESERVADOS)
 function buildSidebar(videos) {
     const menu = document.getElementById("sidebar-menu");
     const cats = [...new Set(videos.map(v => v.categoria).filter(Boolean))];
@@ -302,6 +334,7 @@ function renderSubcategoriesInBody(videos, container) {
     container.appendChild(subGrid);
 }
 
+// NÍVEL 3: MOSAICO FINAL DE VÍDEOS
 function renderVideosInBody(videos, container) {
     container.innerHTML = `<div class="exp-title">Vídeos disponíveis</div>`;
     const vGrid = document.createElement("div");
@@ -325,6 +358,7 @@ function renderVideosInBody(videos, container) {
 function filterCat(c) { renderGrid(allVideos.filter(v => v.categoria === c), c); }
 function filterSub(c, s) { renderGrid(allVideos.filter(v => v.categoria === c && v.subcategoria === s), s); }
 
+// PLAYER
 function openPlayer(video, playlist) {
     currentPlaylist = playlist;
     currentIndex = playlist.findIndex(v => v.link === video.link);
