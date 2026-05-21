@@ -1,6 +1,6 @@
-// URL DO SEU FIREBASE BASEADO NA SUA FOTO
+// CONFIGURAÇÕES DO BANCO DE DADOS (FIREBASE REALTIME DATABASE)
 const FIREBASE_URL = "https://videoteca-19bac-default-rtdb.firebaseio.com/.json"; 
-const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; // Cole aqui a sua chave da API do YouTube v3
+const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; 
 
 const CREDENTIALS = { user: "admin", pass: "admin123" };
 const SESSION_TIMEOUT = 30 * 60 * 1000; 
@@ -51,7 +51,6 @@ function checkSession() {
 function logout() { localStorage.clear(); location.reload(); }
 document.getElementById("btn-logout").addEventListener("click", logout);
 
-// BUSCA OS DADOS DIRETAMENTE DO FIREBASE COM CORREÇÃO DE OBJETO PARA ARRAY
 async function initApp() {
     document.getElementById("login-screen").classList.add("hidden");
     document.getElementById("main-content").classList.remove("hidden");
@@ -60,14 +59,12 @@ async function initApp() {
         const res = await fetch(FIREBASE_URL);
         const data = await res.json();
         
-        // CORREÇÃO: Converte o formato do Firebase em Array pura se ele retornar como Objeto
         if (data && typeof data === 'object' && !Array.isArray(data)) {
             allVideos = Object.values(data);
         } else {
             allVideos = data || [];
         }
         
-        // Remove possíveis itens nulos que o Firebase gera ao excluir índices intermediários
         allVideos = allVideos.filter(Boolean);
         
         buildSidebar(allVideos);
@@ -76,11 +73,10 @@ async function initApp() {
         buildAdminManagementLists();
     } catch (e) { 
         console.error("Erro ao ler banco Firebase:", e); 
-        alert("Erro de conexão com o banco de dados.");
+        alert("Erro de conexão com o Firebase.");
     }
 }
 
-// ATUALIZA O FIREBASE EM UMA ÚNICA CONEXÃO SEGURA E SEM LIMITE DE TAMANHO
 async function saveDatabaseRemotely(updatedArray) {
     const log = document.getElementById("admin-status");
     log.style.color = "#00ffcc";
@@ -113,9 +109,16 @@ async function saveDatabaseRemotely(updatedArray) {
 function setupAdminEvents() {
     const modal = document.getElementById("admin-modal");
     document.getElementById("btn-admin").onclick = () => modal.classList.remove("hidden");
-    document.getElementById("close-admin").onclick = () => modal.classList.add("hidden");
-    document.querySelector("#admin-modal .modal-backdrop").onclick = () => modal.classList.add("hidden");
+    document.getElementById("close-admin").onclick = () => {
+        modal.classList.add("hidden");
+        cancelVideoEdit();
+    };
+    document.querySelector("#admin-modal .modal-backdrop").onclick = () => {
+        modal.classList.add("hidden");
+        cancelVideoEdit();
+    };
 
+    // Cadastro Manual
     document.getElementById("manual-upload-form").onsubmit = async (e) => {
         e.preventDefault();
         const newVid = {
@@ -129,6 +132,26 @@ function setupAdminEvents() {
         document.getElementById("manual-upload-form").reset();
     };
 
+    // NOVA FUNÇÃO: Processa o envio do formulário de EDIÇÃO de vídeo individual
+    document.getElementById("edit-video-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const index = parseInt(document.getElementById("edit-video-index").value);
+        
+        if (!isNaN(index) && allVideos[index]) {
+            allVideos[index] = {
+                "título": document.getElementById("edit-m-title").value.trim(),
+                "link": document.getElementById("edit-m-link").value.trim(),
+                "capa": document.getElementById("edit-m-capa").value.trim(),
+                "categoria": document.getElementById("edit-m-cat").value.trim(),
+                "subcategoria": document.getElementById("edit-m-sub").value.trim()
+            };
+            
+            await saveDatabaseRemotely(allVideos);
+            cancelVideoEdit(); // Esconde a aba de edição e volta para a aba padrão
+        }
+    };
+
+    // Importador do YouTube Playlist
     document.getElementById("yt-import-form").onsubmit = async (e) => {
         e.preventDefault();
         const log = document.getElementById("admin-status");
@@ -142,7 +165,6 @@ function setupAdminEvents() {
         }
 
         log.innerText = "Buscando playlist no YouTube...";
-        
         let allItems = [];
         let nextPageToken = "";
         
@@ -159,9 +181,7 @@ function setupAdminEvents() {
                 }
 
                 const ytData = await response.json();
-                if(ytData.items) {
-                    allItems = [...allItems, ...ytData.items];
-                }
+                if(ytData.items) allItems = [...allItems, ...ytData.items];
                 nextPageToken = ytData.nextPageToken || "";
             } while (nextPageToken);
 
@@ -187,12 +207,35 @@ function setupAdminEvents() {
 
             await saveDatabaseRemotely([...allVideos, ...importedVideos]);
             document.getElementById("yt-import-form").reset();
-
         } catch(err) {
             log.style.color = "#ff3333";
             log.innerText = "Erro no processamento da playlist.";
         }
     };
+}
+
+// NOVO: Abre a aba secreta de edição preenchendo os inputs com as propriedades do vídeo
+function openVideoEditForm(index) {
+    const video = allVideos[index];
+    if (!video) return;
+
+    document.getElementById("edit-video-index").value = index;
+    document.getElementById("edit-m-title").value = getSafeTitle(video);
+    document.getElementById("edit-m-link").value = video.link || "";
+    document.getElementById("edit-m-capa").value = video.capa || "";
+    document.getElementById("edit-m-cat").value = video.categoria || "";
+    document.getElementById("edit-m-sub").value = video.subcategoria || "";
+
+    // Revela a aba de edição oculta no topo do modal
+    const tabLink = document.getElementById("tab-link-edit");
+    tabLink.classList.remove("hidden");
+    tabLink.click(); // Força a navegação para a aba aberta de edição
+}
+
+function cancelVideoEdit() {
+    document.getElementById("edit-video-form").reset();
+    document.getElementById("tab-link-edit").classList.add("hidden");
+    document.getElementById("tab-link-delete").click(); // Retorna automaticamente para a lista
 }
 
 function buildAdminManagementLists() {
@@ -275,10 +318,13 @@ function buildAdminManagementLists() {
             <td>${video.categoria || "Geral"}</td>
             <td>${video.subcategoria || "—"}</td>
             <td>
-                <button class="btn-delete-item"><i class="fa-solid fa-trash"></i></button>
+                <button class="btn-edit-item" title="Editar propriedades do vídeo"><i class="fa-solid fa-film"></i></button>
+                <button class="btn-delete-item" title="Excluir este vídeo"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
-        tr.querySelector(".btn-delete-item").onclick = async () => {
+        // Gatilhos de Ação Individuais de Vídeo
+        tr.querySelector(".btn-edit-item").onclick = () => openVideoEditForm(index);
+        tr.querySelector(".btn-delete-item").onclick = () => {
             if (confirm(`Excluir apenas o vídeo "${getSafeTitle(video)}"?`)) {
                 const clone = [...allVideos];
                 clone.splice(index, 1);
@@ -293,7 +339,17 @@ function switchAdminTab(tabId) {
     document.querySelectorAll(".admin-tab-content").forEach(el => el.classList.add("hidden"));
     document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
     document.getElementById(tabId).classList.remove("hidden");
-    event.currentTarget.classList.add("active");
+    
+    // Se o usuário clicar manualmente em outra aba ativa, remove o link visual de edição pendente
+    if (tabId !== 'edit-video-tab') {
+        document.getElementById("tab-link-edit").classList.add("hidden");
+    }
+    
+    // Ativa o link correspondente clicado
+    if (tabId === 'yt-tab') document.getElementById('tab-link-yt').classList.add('active');
+    else if (tabId === 'manual-tab') document.getElementById('tab-link-manual').classList.add('active');
+    else if (tabId === 'delete-tab') document.getElementById('tab-link-delete').classList.add('active');
+    else if (tabId === 'edit-video-tab') document.getElementById('tab-link-edit').classList.add('active');
 }
 
 function buildSidebar(videos) {
