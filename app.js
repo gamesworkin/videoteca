@@ -1,15 +1,6 @@
-// CONFIGURAÇÕES DO BANCO DE DADOS (JSONBIN.IO) E YOUTUBE API
-const BIN_ID = "6a0f32256877513b27ad9e6e"; 
-const MASTER_KEY = "$2a$10$SpMCqRLrFJc5TefzAacUB.5.zFYLg7WAOcHxZt83XiWW5OoTm/wey"; 
-const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE";
-
-const CONFIG = {
-    BIN_URL: `https://api.jsonbin.io/v3/b/${BIN_ID}`,
-    HEADERS: {
-        "Content-Type": "application/json",
-        "X-Master-Key": MASTER_KEY
-    }
-};
+// URL DO SEU FIREBASE (Lembre-se de colocar o /.json no final)
+const FIREBASE_URL = "https://videoteca-19bac-default-rtdb.firebaseio.com/.json"; 
+const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; 
 
 const CREDENTIALS = { user: "admin", pass: "admin123" };
 const SESSION_TIMEOUT = 30 * 60 * 1000; 
@@ -60,122 +51,55 @@ function checkSession() {
 function logout() { localStorage.clear(); location.reload(); }
 document.getElementById("btn-logout").addEventListener("click", logout);
 
+// BUSCA OS DADOS DIRETAMENTE DO FIREBASE
 async function initApp() {
     document.getElementById("login-screen").classList.add("hidden");
     document.getElementById("main-content").classList.remove("hidden");
     
     try {
-        const res = await fetch(CONFIG.BIN_URL + "/latest", { headers: CONFIG.HEADERS });
+        const res = await fetch(FIREBASE_URL);
         const data = await res.json();
-        allVideos = data.record || [];
+        // O Firebase retorna null se o banco estiver vazio
+        allVideos = data || [];
         
         buildSidebar(allVideos);
         renderGrid(allVideos, 'Início');
         setupModal();
         buildAdminManagementLists();
     } catch (e) { 
-        console.error("Erro ao ler banco remoto:", e); 
-        alert("Erro de conexão. Verifique o BIN_ID e MASTER_KEY.");
+        console.error("Erro ao ler banco Firebase:", e); 
+        alert("Erro de conexão. Verifique se a URL do Firebase possui o /.json no final.");
     }
 }
 
-// FUNÇÃO PADRÃO PARA SALVAR PEQUENAS ALTERAÇÕES (VÍDEO ÚNICO OU EDIÇÃO)
+// ATUALIZA O FIREBASE EM UMA ÚNICA CONEXÃO SEGURA E SEM LIMITE DE TAMANHO
 async function saveDatabaseRemotely(updatedArray) {
     const log = document.getElementById("admin-status");
     log.style.color = "#00ffcc";
-    log.innerText = "Sincronizando com o banco remoto...";
+    log.innerText = "Sincronizando com o Firebase...";
     
     try {
-        const res = await fetch(CONFIG.BIN_URL, {
+        const res = await fetch(FIREBASE_URL, {
             method: "PUT",
-            headers: CONFIG.HEADERS,
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedArray)
         });
         
         if(res.ok) {
             allVideos = updatedArray;
-            log.innerText = "Banco de dados atualizado com sucesso!";
+            log.innerText = "Biblioteca Firebase sincronizada!";
             buildSidebar(allVideos);
             renderGrid(allVideos, 'Início');
             buildAdminManagementLists(); 
-            setTimeout(() => { log.innerText = ""; }, 4000);
+            setTimeout(() => { log.innerText = ""; }, 3000);
         } else {
-            if(res.status === 413 || res.status === 400) {
-                log.style.color = "#ff3333";
-                log.innerText = "Erro: Tamanho limite do arquivo JSON excedido no JSONBin!";
-            } else if(res.status === 403) {
-                log.style.color = "#ff3333";
-                log.innerText = "Erro 403: Servidor bloqueou o envio em lote. Tente novamente em instantes.";
-            } else {
-                log.style.color = "#ff3333";
-                log.innerText = `Erro no servidor: Status ${res.status}.`;
-            }
+            log.style.color = "#ff3333";
+            log.innerText = `Erro nas Regras do Firebase: Status ${res.status}.`;
         }
     } catch(e) {
         log.style.color = "#ff3333";
-        log.innerText = "Falha de rede ao sincronizar.";
+        log.innerText = "Falha de rede ao conectar com o Firebase.";
     }
-}
-
-// NOVA FUNÇÃO: Envia listas gigantes em "pedaços" com pausas para evitar o Erro 403
-async function saveLargePlaylistInChunks(newVideosArray) {
-    const log = document.getElementById("admin-status");
-    log.style.color = "#00ffcc";
-    
-    // Tamanho de cada pedaço (Fatias de 5 em 5 vídeos é o ideal para segurança)
-    const chunkSize = 5; 
-    let currentDatabase = [...allVideos];
-    
-    log.innerText = `Preparando importação de ${newVideosArray.length} vídeos fatiados...`;
-
-    for (let i = 0; i < newVideosArray.length; i += chunkSize) {
-        const chunk = newVideosArray.slice(i, i + chunkSize);
-        currentDatabase = [...currentDatabase, ...chunk];
-        
-        const currentPart = Math.floor(i / chunkSize) + 1;
-        const totalParts = Math.ceil(newVideosArray.length / chunkSize);
-        log.innerText = `Enviando bloco ${currentPart} de ${totalParts} para o servidor...`;
-
-        try {
-            const res = await fetch(CONFIG.BIN_URL, {
-                method: "PUT",
-                headers: CONFIG.HEADERS,
-                body: JSON.stringify(currentDatabase)
-            });
-
-            if (!res.ok) {
-                if (res.status === 403) {
-                    log.style.color = "#ff3333";
-                    log.innerText = "O servidor barrou o envio por excesso de velocidade. Aguardando 5 segundos para tentar novamente...";
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                    i -= chunkSize; // Desfaz o passo para retransmitir a mesma fatia
-                    currentDatabase = currentDatabase.slice(0, currentDatabase.length - chunk.length); // Remove duplicados da memória
-                    continue;
-                } else {
-                    log.style.color = "#ff3333";
-                    log.innerText = `Erro durante o upload parcelado: Status ${res.status}`;
-                    return;
-                }
-            }
-
-            // Atualiza a memória local a cada bloco com sucesso
-            allVideos = currentDatabase;
-
-            // Pequena pausa de 1.5 segundos entre os envios para enganar o sistema anti-spam do JSONBin
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-        } catch (e) {
-            log.style.color = "#ff3333";
-            log.innerText = "Erro de conexão no envio parcelado.";
-            return;
-        }
-    }
-
-    log.innerText = "Sincronização completa de toda a playlist realizada!";
-    buildSidebar(allVideos);
-    renderGrid(allVideos, 'Início');
-    buildAdminManagementLists();
-    setTimeout(() => { log.innerText = ""; }, 4000);
 }
 
 function setupAdminEvents() {
@@ -209,13 +133,12 @@ function setupAdminEvents() {
             playlistId = playlistId.split("list=")[1].split("&")[0];
         }
 
-        log.innerText = "Buscando dados da lista no Google...";
+        log.innerText = "Buscando playlist no YouTube...";
         
         let allItems = [];
         let nextPageToken = "";
         
         try {
-            // LOOP DE PAGINAÇÃO: Suporta listas com mais de 50 vídeos (o YouTube limita em 50 por página)
             do {
                 const tokenParam = nextPageToken ? `&pageToken=${nextPageToken}` : "";
                 const ytUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}${tokenParam}&key=${YT_API_KEY}`;
@@ -223,7 +146,7 @@ function setupAdminEvents() {
                 const response = await fetch(ytUrl);
                 if (!response.ok) {
                     log.style.color = "#ff3333";
-                    log.innerText = "Erro: Cota diária do YouTube esgotada ou ID de playlist incorreto.";
+                    log.innerText = "Erro: Chave do YouTube sem cota ou ID incorreto.";
                     return;
                 }
 
@@ -236,7 +159,7 @@ function setupAdminEvents() {
 
             if(allItems.length === 0) {
                 log.style.color = "#ff3333";
-                log.innerText = "A playlist informada está vazia.";
+                log.innerText = "Playlist vazia.";
                 return;
             }
 
@@ -254,13 +177,13 @@ function setupAdminEvents() {
                 };
             }).filter(v => v.título && v.link && !v.título.includes("Private video") && !v.título.includes("Deleted video"));
 
-            // Executa a nova função de envio seguro fatiado
-            await saveLargePlaylistInChunks(importedVideos);
+            // Gravação instantânea no Firebase, sem precisar fatiar de 5 em 5!
+            await saveDatabaseRemotely([...allVideos, ...importedVideos]);
             document.getElementById("yt-import-form").reset();
 
         } catch(err) {
             log.style.color = "#ff3333";
-            log.innerText = "Erro no processamento interno da playlist.";
+            log.innerText = "Erro no processamento da playlist.";
         }
     };
 }
@@ -294,14 +217,14 @@ function buildAdminManagementLists() {
             </td>
         `;
         tr.querySelector(".btn-edit-item").onclick = () => {
-            const newName = prompt(`Digite o novo nome para a categoria "${catName}":`, catName);
+            const newName = prompt(`Novo nome para "${catName}":`, catName);
             if(newName && newName.trim() !== catName) {
                 const updated = allVideos.map(v => v.categoria === catName ? { ...v, categoria: newName.trim() } : v);
                 saveDatabaseRemotely(updated);
             }
         };
         tr.querySelector(".btn-delete-item").onclick = () => {
-            if(confirm(`Excluir a categoria "${catName}" apagará TODOS os vídeos dela. Confirmar?`)) {
+            if(confirm(`Excluir a categoria "${catName}" apagará TODOS os vídeos dela.`)) {
                 saveDatabaseRemotely(allVideos.filter(v => v.categoria !== catName));
             }
         };
@@ -320,7 +243,7 @@ function buildAdminManagementLists() {
             </td>
         `;
         tr.querySelector(".btn-edit-item").onclick = () => {
-            const newName = prompt(`Digite o novo nome para a subcategoria "${item.sub}":`, item.sub);
+            const newName = prompt(`Novo nome para "${item.sub}":`, item.sub);
             if(newName && newName.trim() !== item.sub) {
                 const updated = allVideos.map(v => (v.categoria === item.cat && v.subcategoria === item.sub) ? { ...v, subcategoria: newName.trim() } : v);
                 saveDatabaseRemotely(updated);
