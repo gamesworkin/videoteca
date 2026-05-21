@@ -58,23 +58,28 @@ body { background-color: var(--bg-main); color: var(--text); overflow: hidden; }
 .expanded-container { grid-column: 1 / -1; background: rgba(20, 20, 20, 0.5); border: 1px solid #222; border-radius: 10px; padding: 20px; margin: 10px 0; }
 .exp-title { font-size: 12px; color: var(--accent); margin-bottom: 15px; text-transform: uppercase; font-weight: bold; }
 
-/* ADMIN PANEL & TABELA DE EXCLUSÃO */
+/* ADMIN PANEL & TABLES */
 .admin-modal-box { padding: 30px !important; color: #fff; overflow-y: auto !important; }
-.admin-tabs { display: flex; gap: 10px; margin: 20px 0; border-bottom: 1px solid #222; padding-bottom: 10px; }
+.admin-tabs { display: flex; gap: 10px; margin: 15px 0; border-bottom: 1px solid #222; padding-bottom: 10px; }
 .tab-btn { background: #111; border: 1px solid #333; color: #888; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .input-row-flex { display: flex; gap: 15px; }
-.admin-status-log { margin-top: 15px; font-size: 12px; color: #00ffcc; text-align: center; min-height: 15px; }
+.admin-status-log { margin-top: 15px; font-size: 12px; color: #00ffcc; text-align: center; min-height: 15px; font-weight: bold; }
 
-.delete-list-container { max-height: 40vh; overflow-y: auto; background: #111; border: 1px solid var(--border); border-radius: 6px; }
+.section-admin-title { font-size: 13px; color: #aaa; margin: 15px 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+.delete-list-container { max-height: 25vh; overflow-y: auto; background: #111; border: 1px solid var(--border); border-radius: 6px; }
 .delete-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
-.delete-table th, .delete-table td { padding: 12px; border-bottom: 1px solid #222; }
+.delete-table th, .delete-table td { padding: 10px 12px; border-bottom: 1px solid #222; }
 .delete-table th { background: #161616; color: #666; text-transform: uppercase; font-size: 10px; }
 .delete-table tr:hover { background: #1a1a1a; }
-.btn-delete-item { background: transparent; border: none; color: #ff3333; cursor: pointer; font-size: 14px; padding: 4px 8px; transition: 0.2s; }
-.btn-delete-item:hover { color: #ff0000; transform: scale(1.1); }
 
-/* PLAYER & OVERLAYS */
+/* AÇÕES DE BOTÕES DE GERENCIAMENTO */
+.btn-delete-item { background: transparent; border: none; color: #ff3333; cursor: pointer; font-size: 13px; padding: 4px 6px; transition: 0.2s; }
+.btn-delete-item:hover { color: #ff0000; transform: scale(1.1); }
+.btn-edit-item { background: transparent; border: none; color: #00ffcc; cursor: pointer; font-size: 13px; padding: 4px 6px; transition: 0.2s; margin-right: 8px; }
+.btn-edit-item:hover { color: #00ffaa; transform: scale(1.1); }
+
+/* PLAYER MODAL */
 .video-modal { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.98); }
 .modal-content { position: relative; width: 94%; height: 90%; background: #000; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #333; }
