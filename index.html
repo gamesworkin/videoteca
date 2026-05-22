@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Videoteca</title>
-     <link rel="icon" type="image/x-icon" href="fav.ico">
+    <title>CinePrivate V18 - Data Portability Edition</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -12,7 +11,7 @@
 
     <div id="login-screen" class="login-container">
         <div class="login-box">
-            <h2><i class="fa-solid fa-bolt"></i> Videoteca 📼 </h2>
+            <h2><i class="fa-solid fa-bolt"></i> CinePrivate</h2>
             <form id="login-form">
                 <div class="input-group">
                     <label>Usuário</label>
@@ -23,7 +22,7 @@
                     <input type="password" id="password" required autocomplete="current-password">
                 </div>
                 <button type="submit" class="btn-login">Entrar</button>
-                <div id="login-error" class="error-message">Acesso restrito</div>
+                <div id="login-error" class="error-message">Acesso negado.</div>
             </form>
         </div>
     </div>
@@ -35,7 +34,7 @@
             </div>
             <div class="sidebar-content">
                 <div class="sidebar-header">
-                    <h3>Conteúdo</h3>
+                    <h3>Navegação</h3>
                 </div>
                 <nav id="sidebar-menu" class="menu-channels"></nav>
                 <button id="btn-logout" class="btn-logout"><i class="fa-solid fa-power-off"></i> <span>Sair</span></button>
@@ -153,7 +152,14 @@
             </div>
 
             <div id="delete-tab" class="admin-tab-content hidden">
-                <h3 class="section-admin-title"><i class="fa-solid fa-folder-open"></i> Editar / Excluir Estruturas</h3>
+                
+                <h3 class="section-admin-title"><i class="fa-solid fa-file-import"></i> Importar Dados (JSON / Texto)</h3>
+                <div class="import-panel-box">
+                    <textarea id="import-text-area" placeholder="Cole aqui o código JSON exportado de um vídeo, subcategoria ou categoria inteira..."></textarea>
+                    <button id="btn-execute-import" class="btn-login" style="background:#00ffcc; color:#000; padding:8px; font-size:12px; margin-top:5px;"><i class="fa-solid fa-file-circle-plus"></i> Injetar e Sincronizar Dados</button>
+                </div>
+                
+                <h3 class="section-admin-title"><i class="fa-solid fa-folder-open"></i> Editar / Excluir / Exportar Estruturas</h3>
                 <div class="delete-list-container" style="margin-bottom: 25px;">
                     <table class="delete-table">
                         <thead>
