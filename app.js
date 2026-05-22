@@ -2,7 +2,7 @@
 const FIREBASE_URL = "https://videoteca-19bac-default-rtdb.firebaseio.com/.json"; 
 const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; 
 
-const CREDENTIALS = { user: "diegosilvaeo", pass: "arcnet2154" };
+const CREDENTIALS = { user: "admin", pass: "admin123" };
 const SESSION_TIMEOUT = 30 * 60 * 1000; 
 
 let allVideos = [];
@@ -106,17 +106,23 @@ async function saveDatabaseRemotely(updatedArray) {
     }
 }
 
+// NOVA FUNÇÃO AUXILIAR: Executa a cópia de texto JSON comprimido para a área de transferência do usuário
+function copyStringToClipboard(str, alertMessage) {
+    navigator.clipboard.writeText(str).then(() => {
+        const log = document.getElementById("admin-status");
+        log.style.color = "#00ffcc";
+        log.innerText = alertMessage;
+        setTimeout(() => log.innerText = "", 3000);
+    }).catch(() => {
+        alert("Falha ao copiar automaticamente. Código gerado:\n\n" + str);
+    });
+}
+
 function setupAdminEvents() {
     const modal = document.getElementById("admin-modal");
     document.getElementById("btn-admin").onclick = () => modal.classList.remove("hidden");
-    document.getElementById("close-admin").onclick = () => {
-        modal.classList.add("hidden");
-        cancelVideoEdit();
-    };
-    document.querySelector("#admin-modal .modal-backdrop").onclick = () => {
-        modal.classList.add("hidden");
-        cancelVideoEdit();
-    };
+    document.getElementById("close-admin").onclick = () => { modal.classList.add("hidden"); cancelVideoEdit(); };
+    document.querySelector("#admin-modal .modal-backdrop").onclick = () => { modal.classList.add("hidden"); cancelVideoEdit(); };
 
     // Cadastro Manual
     document.getElementById("manual-upload-form").onsubmit = async (e) => {
@@ -132,11 +138,10 @@ function setupAdminEvents() {
         document.getElementById("manual-upload-form").reset();
     };
 
-    // NOVA FUNÇÃO: Processa o envio do formulário de EDIÇÃO de vídeo individual
+    // Edição de vídeo individual
     document.getElementById("edit-video-form").onsubmit = async (e) => {
         e.preventDefault();
         const index = parseInt(document.getElementById("edit-video-index").value);
-        
         if (!isNaN(index) && allVideos[index]) {
             allVideos[index] = {
                 "título": document.getElementById("edit-m-title").value.trim(),
@@ -145,9 +150,48 @@ function setupAdminEvents() {
                 "categoria": document.getElementById("edit-m-cat").value.trim(),
                 "subcategoria": document.getElementById("edit-m-sub").value.trim()
             };
-            
             await saveDatabaseRemotely(allVideos);
-            cancelVideoEdit(); // Esconde a aba de edição e volta para a aba padrão
+            cancelVideoEdit();
+        }
+    };
+
+    // NOVA FUNÇÃO: Processa o botão de IMPORTAÇÃO UNIVERSAL por bloco de texto JSON
+    document.getElementById("btn-execute-import").onclick = async () => {
+        const log = document.getElementById("admin-status");
+        const rawInput = document.getElementById("import-text-area").value.trim();
+        
+        if(!rawInput) {
+            log.style.color = "#ff3333";
+            log.innerText = "Erro: Cole um código JSON válido antes de injetar!";
+            return;
+        }
+
+        try {
+            const parsedData = JSON.parse(rawInput);
+            let verifiedList = [];
+
+            // Identifica se o dado colado é um único vídeo ou um array de múltiplos vídeos
+            if (Array.isArray(parsedData)) {
+                verifiedList = parsedData.filter(v => v.link && (v.título || v.titulo));
+            } else if (typeof parsedData === 'object' && parsedData.link) {
+                verifiedList.push(parsedData);
+            }
+
+            if(verifiedList.length === 0) {
+                log.style.color = "#ff3333";
+                log.innerText = "Erro: Estrutura de dados inválida. Nenhum vídeo detectado.";
+                return;
+            }
+
+            // Mescla a lista importada com os vídeos atuais da biblioteca
+            const mergedDatabase = [...allVideos, ...verifiedList];
+            await saveDatabaseRemotely(mergedDatabase);
+            document.getElementById("import-text-area").value = "";
+            log.innerText = `Sucesso! ${verifiedList.length} vídeo(s) injetado(s) na videoteca!`;
+
+        } catch(err) {
+            log.style.color = "#ff3333";
+            log.innerText = "Erro de sintaxe JSON. Certifique-se de copiar o bloco de código completo.";
         }
     };
 
@@ -160,9 +204,7 @@ function setupAdminEvents() {
         const cat = document.getElementById("yt-cat").value.trim();
         const sub = document.getElementById("yt-sub").value.trim();
 
-        if(playlistId.includes("list=")) {
-            playlistId = playlistId.split("list=")[1].split("&")[0];
-        }
+        if(playlistId.includes("list=")) playlistId = playlistId.split("list=")[1].split("&")[0];
 
         log.innerText = "Buscando playlist no YouTube...";
         let allItems = [];
@@ -214,7 +256,6 @@ function setupAdminEvents() {
     };
 }
 
-// NOVO: Abre a aba secreta de edição preenchendo os inputs com as propriedades do vídeo
 function openVideoEditForm(index) {
     const video = allVideos[index];
     if (!video) return;
@@ -226,16 +267,15 @@ function openVideoEditForm(index) {
     document.getElementById("edit-m-cat").value = video.categoria || "";
     document.getElementById("edit-m-sub").value = video.subcategoria || "";
 
-    // Revela a aba de edição oculta no topo do modal
     const tabLink = document.getElementById("tab-link-edit");
     tabLink.classList.remove("hidden");
-    tabLink.click(); // Força a navegação para a aba aberta de edição
+    tabLink.click();
 }
 
 function cancelVideoEdit() {
     document.getElementById("edit-video-form").reset();
     document.getElementById("tab-link-edit").classList.add("hidden");
-    document.getElementById("tab-link-delete").click(); // Retorna automaticamente para a lista
+    document.getElementById("tab-link-delete").click(); 
 }
 
 function buildAdminManagementLists() {
@@ -255,6 +295,7 @@ function buildAdminManagementLists() {
         }
     });
 
+    // LISTAGEM DE CATEGORIAS COM SUPORTE A EXPORTAÇÃO COMPLETA
     categoriesSet.forEach(catName => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -262,10 +303,18 @@ function buildAdminManagementLists() {
             <td style="font-weight:bold; color:#fff;">${catName}</td>
             <td>—</td>
             <td>
-                <button class="btn-edit-item"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn-delete-item"><i class="fa-solid fa-trash"></i></button>
+                <button class="btn-export-item" title="Exportar Categoria inteira (JSON)"><i class="fa-solid fa-download"></i></button>
+                <button class="btn-edit-item" title="Editar nome"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn-delete-item" title="Excluir"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
+        
+        // NOVO: Exportar Categoria inteira contendo suas subcategorias e vídeos em lote
+        tr.querySelector(".btn-export-item").onclick = () => {
+            const catVideos = allVideos.filter(v => v.categoria === catName);
+            copyStringToClipboard(JSON.stringify(catVideos), `Código da Categoria "${catName}" copiado para a Área de Transferência!`);
+        };
+
         tr.querySelector(".btn-edit-item").onclick = () => {
             const newName = prompt(`Novo nome para "${catName}":`, catName);
             if(newName && newName.trim() !== catName) {
@@ -281,6 +330,7 @@ function buildAdminManagementLists() {
         structBody.appendChild(tr);
     });
 
+    // LISTAGEM DE SUBCATEGORIAS COM SUPORTE A EXPORTAÇÃO
     subCategoriesMap.forEach(item => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -288,10 +338,18 @@ function buildAdminManagementLists() {
             <td style="color:#eee;">${item.sub}</td>
             <td style="color:#777;">${item.cat}</td>
             <td>
+                <button class="btn-export-item" title="Exportar Subcategoria (JSON)"><i class="fa-solid fa-download"></i></button>
                 <button class="btn-edit-item"><i class="fa-solid fa-pen"></i></button>
                 <button class="btn-delete-item"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
+        
+        // NOVO: Exportar Subcategoria específica contendo seus vídeos
+        tr.querySelector(".btn-export-item").onclick = () => {
+            const subVideos = allVideos.filter(v => v.categoria === item.cat && v.subcategoria === item.sub);
+            copyStringToClipboard(JSON.stringify(subVideos), `Código da Subcategoria "${item.sub}" copiado!`);
+        };
+
         tr.querySelector(".btn-edit-item").onclick = () => {
             const newName = prompt(`Novo nome para "${item.sub}":`, item.sub);
             if(newName && newName.trim() !== item.sub) {
@@ -307,6 +365,7 @@ function buildAdminManagementLists() {
         structBody.appendChild(tr);
     });
 
+    // LISTAGEM DE VÍDEOS COM SUPORTE A EXPORTAÇÃO INDIVIDUAL
     if (allVideos.length === 0) {
         videoBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#555;">Nenhum vídeo na biblioteca.</td></tr>`;
         return;
@@ -318,11 +377,17 @@ function buildAdminManagementLists() {
             <td>${video.categoria || "Geral"}</td>
             <td>${video.subcategoria || "—"}</td>
             <td>
-                <button class="btn-edit-item" title="Editar propriedades do vídeo"><i class="fa-solid fa-film"></i></button>
+                <button class="btn-export-item" title="Exportar este vídeo (JSON)"><i class="fa-solid fa-download"></i></button>
+                <button class="btn-edit-item" title="Editar propriedades"><i class="fa-solid fa-film"></i></button>
                 <button class="btn-delete-item" title="Excluir este vídeo"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
-        // Gatilhos de Ação Individuais de Vídeo
+        
+        // NOVO: Exportar um único vídeo independente
+        tr.querySelector(".btn-export-item").onclick = () => {
+            copyStringToClipboard(JSON.stringify(video), `Código do vídeo "${getSafeTitle(video)}" copiado!`);
+        };
+
         tr.querySelector(".btn-edit-item").onclick = () => openVideoEditForm(index);
         tr.querySelector(".btn-delete-item").onclick = () => {
             if (confirm(`Excluir apenas o vídeo "${getSafeTitle(video)}"?`)) {
@@ -340,12 +405,8 @@ function switchAdminTab(tabId) {
     document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
     document.getElementById(tabId).classList.remove("hidden");
     
-    // Se o usuário clicar manualmente em outra aba ativa, remove o link visual de edição pendente
-    if (tabId !== 'edit-video-tab') {
-        document.getElementById("tab-link-edit").classList.add("hidden");
-    }
+    if (tabId !== 'edit-video-tab') document.getElementById("tab-link-edit").classList.add("hidden");
     
-    // Ativa o link correspondente clicado
     if (tabId === 'yt-tab') document.getElementById('tab-link-yt').classList.add('active');
     else if (tabId === 'manual-tab') document.getElementById('tab-link-manual').classList.add('active');
     else if (tabId === 'delete-tab') document.getElementById('tab-link-delete').classList.add('active');
