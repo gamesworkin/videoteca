@@ -2,7 +2,7 @@
 const FIREBASE_URL = "https://videoteca-19bac-default-rtdb.firebaseio.com/.json"; 
 const YT_API_KEY = "AIzaSyDNHqERli0UuPqruQwd2UPIBg7nikrjqNE"; 
 
-const CREDENTIALS = { user: "admin", pass: "admin123" };
+const CREDENTIALS = { user: "diegosilvaeo", pass: "arcnet2154" };
 const SESSION_TIMEOUT = 30 * 60 * 1000; 
 
 let allVideos = [];
