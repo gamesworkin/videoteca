@@ -66,6 +66,103 @@ body { background-color: var(--bg-main); color: var(--text); overflow: hidden; }
 .input-row-flex { display: flex; gap: 15px; width: 100%; }
 .admin-status-log { margin-top: 15px; font-size: 12px; color: #00ffcc; text-align: center; min-height: 15px; font-weight: bold; }
 
+/* IMPORT PANEL BOX */
+.import-panel-box { width: 100%; background: #111; padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 20px; }
+.import-panel-box textarea { width: 100%; height: 60px; background: #1a1a1a; border: 1px solid #333; border-radius: 4px; color: #00ffcc; font-family: monospace; font-size: 11px; padding: 8px; outline: none; resize: none; }
+
+.section-admin-title { font-size: 13px; color: #aaa; margin: 15px 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+.delete-list-container { max-height: 25vh; overflow-y: auto; background: #111; border: 1px solid var(--border); border-radius: 6px; }
+.delete-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+.delete-table th, .delete-table td { padding: 10px 12px; border-bottom: 1px solid #222; }
+.delete-table th { background: #161616; color: #666; text-transform: uppercase; font-size: 10px; }
+.delete-table tr:hover { background: #1a1a1a; }
+
+/* BOTÕES REMODELADOS DO PAINEL */
+.btn-delete-item { background: transparent; border: none; color: #ff3333; cursor: pointer; font-size: 13px; padding: 4px 5px; transition: 0.2s; }
+.btn-delete-item:hover { color: #ff0000; transform: scale(1.1); }
+.btn-edit-item { background: transparent; border: none; color: #00ffcc; cursor: pointer; font-size: 13px; padding: 4px 5px; transition: 0.2s; margin-right: 2px; }
+.btn-edit-item:hover { color: #00ffaa; transform: scale(1.1); }
+.btn-export-item { background: transparent; border: none; color: #ffbb00; cursor: pointer; font-size: 13px; padding: 4px 5px; transition: 0.2s; margin-right: 2px; }
+.btn-export-item:hover { color: #ffee00; transform: scale(1.1); }
+
+/* PLAYER */
+.video-modal { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.98); }
+.modal-content { position: relative; width: 94%; height: 90%; background: #000; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #333; }
+.player-container { flex: 1; }
+.player-container iframe, .player-container video { width: 100%; height: 100%; border: none; }
+.player-controls-bar { padding: 12px 20px; background: #050505; display: flex; justify-content: space-between; align-items: center; }
+.control-btn { background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+.close-btn { position: absolute; top: 10px; right: 10px; z-index: 10; background: var(--accent); border: none; color: #fff; font-size: 16px; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.btn-logout { background: transparent; border: 1px solid #333; color: #444; padding: 10px; cursor: pointer; text-align: left; margin-top: auto; border-radius: 6px; font-size: 11px; }
+:root {
+    --bg-main: #0a0a0a;
+    --bg-sidebar: #000000;
+    --bg-card: #161616;
+    --accent: #e50914;
+    --text: #ffffff;
+    --border: #222222;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+body { background-color: var(--bg-main); color: var(--text); overflow: hidden; }
+.hidden { display: none !important; }
+
+/* LOGIN */
+.login-container { height: 100vh; display: flex; justify-content: center; align-items: center; background: #000; }
+.login-box { background: #111; padding: 40px; border-radius: 12px; width: 350px; border: 1px solid var(--border); text-align: center; }
+.login-box h2 { color: var(--accent); margin-bottom: 20px; font-size: 24px; }
+.input-group { text-align: left; margin-bottom: 15px; width: 100%; }
+.input-group label { font-size: 11px; color: #666; display: block; margin-bottom: 5px; text-transform: uppercase; }
+.input-group input { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 6px; outline: none; }
+.btn-login { width: 100%; padding: 12px; background: var(--accent); border: none; color: #fff; font-weight: bold; cursor: pointer; border-radius: 6px; margin-bottom: 10px; }
+
+/* SIDEBAR */
+.sidebar { width: 260px; background: var(--bg-sidebar); border-right: 1px solid var(--border); transition: width 0.3s ease; display: flex; flex-direction: column; position: relative; }
+.sidebar.collapsed { width: 60px; }
+.sidebar.collapsed .sidebar-header, .sidebar.collapsed .category-item span, .sidebar.collapsed .subcategory-list, .sidebar.collapsed .btn-logout span { display: none; }
+.sidebar-toggle { padding: 20px; cursor: pointer; text-align: center; color: var(--accent); font-size: 20px; }
+.sidebar-content { flex: 1; padding: 0 10px; overflow-y: auto; }
+
+.category-item { padding: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 2px; }
+.category-item:hover { background: #111; }
+.chevron { font-size: 10px; transition: transform 0.3s; color: #444; }
+.expanded .chevron { transform: rotate(180deg); }
+.subcategory-list { padding-left: 20px; list-style: none; margin-bottom: 10px; }
+.subcategory-list li { padding: 8px; color: #777; cursor: pointer; font-size: 13px; border-radius: 4px; }
+.subcategory-list li:hover { color: #fff; background: #1a1a1a; }
+
+/* CONTENT AREA */
+.main-wrapper { display: flex; height: 100vh; }
+.content-area { flex: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; }
+.top-search-bar { width: 100%; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+.search-box { display: flex; align-items: center; background: #111; border: 1px solid var(--border); padding: 10px 20px; border-radius: 30px; flex: 1; max-width: 400px; }
+.search-box input { background: transparent; border: none; color: #fff; width: 100%; outline: none; margin-left: 10px; font-size: 14px; }
+
+.btn-admin-gear { background: #161616; border: 1px solid var(--border); color: #fff; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; }
+.btn-admin-gear:hover { border-color: var(--accent); color: var(--accent); }
+
+.main-header { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+
+/* MOSAIC SYSTEM */
+.main-mosaic-grid, .sub-mosaic-grid, .videos-mosaic { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
+.mosaic-card { background: var(--bg-card); border-radius: 8px; overflow: hidden; cursor: pointer; border: 1px solid var(--border); transition: 0.3s; display: flex; flex-direction: column; }
+.mosaic-card:hover { transform: scale(1.05); border-color: var(--accent); }
+.card-thumb { width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+.card-info { padding: 10px; text-align: center; }
+.card-info h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-info p { font-size: 9px; color: #555; margin-top: 4px; }
+.expanded-container { grid-column: 1 / -1; background: rgba(20, 20, 20, 0.5); border: 1px solid #222; border-radius: 10px; padding: 20px; margin: 10px 0; }
+.exp-title { font-size: 12px; color: var(--accent); margin-bottom: 15px; text-transform: uppercase; font-weight: bold; }
+
+/* ADMIN PANEL */
+.admin-modal-box { padding: 30px !important; color: #fff; overflow-y: auto !important; }
+.admin-tabs { display: flex; gap: 10px; margin: 15px 0; border-bottom: 1px solid #222; padding-bottom: 10px; }
+.tab-btn { background: #111; border: 1px solid #333; color: #888; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.input-row-flex { display: flex; gap: 15px; width: 100%; }
+.admin-status-log { margin-top: 15px; font-size: 12px; color: #00ffcc; text-align: center; min-height: 15px; font-weight: bold; }
+
 .section-admin-title { font-size: 13px; color: #aaa; margin: 15px 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
 .delete-list-container { max-height: 25vh; overflow-y: auto; background: #111; border: 1px solid var(--border); border-radius: 6px; }
 .delete-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
